@@ -50,5 +50,6 @@ Exports include the API endpoint and Cognito identifiers; they are public
 configuration, not evidence that authentication or the application works.
 Logs can contain sensitive data: inspect narrowly and redact before sharing.
 Do not fetch secret values, tokens or customer records as routine diagnostics.
-Use [IAM troubleshooting](iam-issues.md), [CI/CD troubleshooting](ci-cd-issues.md)
-and [testing.md](testing.md) for the next step.
+Use [IAM troubleshooting](iam-issues.md), [CI/CD troubleshooting](ci-cd-issues.md),
+[the CI/CD debugging guide](ci-cd-debugging.md) and [testing.md](testing.md) for
+the next step.

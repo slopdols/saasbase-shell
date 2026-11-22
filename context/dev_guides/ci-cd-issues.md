@@ -1,6 +1,9 @@
 # CI/CD Troubleshooting
 
-Start with [setup.md](../../setup.md).
+Start with [setup.md](../../setup.md). For an unfamiliar failed run, use
+[ci-cd-debugging.md](ci-cd-debugging.md) to confirm `gh` access, find the run for
+a commit, read job/step logs, interpret skip annotations, correlate Lambda logs
+and follow the rerun authorization rules.
 
 - OIDC assumption denied: the deployment job must use GitHub environment `prod`
   or `dev`. Inspect the existing app's repository/account and role trust using

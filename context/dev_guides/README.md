@@ -8,7 +8,8 @@ shell's capabilities, local development, deployment and operations.
 | [coding-rules.md](coding-rules.md) | Mandatory implementation rules and feature acceptance |
 | [testing.md](testing.md) | Suite ownership, fixtures, commands, real vs mocked checks and test failures |
 | [saas-techstack-guide.md](saas-techstack-guide.md) | Architecture, storage and extension patterns; optional alternatives are not approved changes |
-| [ci-cd-issues.md](ci-cd-issues.md) | Setup targeting, pipeline failures, Vercel protection and deployment verification |
+| [ci-cd-issues.md](ci-cd-issues.md) | Known pipeline symptoms, setup targeting, Vercel protection and deployment verification |
+| [ci-cd-debugging.md](ci-cd-debugging.md) | Inspecting an Actions run with `gh`, skip annotations, Lambda log correlation, rerun authorization and failure reports |
 | [iam-issues.md](iam-issues.md) | OIDC trust, deployment permissions and repair of an existing application's role |
 | [aws-cli-resource-explorer.md](aws-cli-resource-explorer.md) | Read-only inspection of the selected app/account/region |
 | [aws-admin-cloudshell.md](aws-admin-cloudshell.md) | Administrator operating boundaries and approved recovery, not a second setup wizard |

@@ -13,6 +13,8 @@ Do not invent product decisions or treat a proposed plan as implemented behavior
 - [README.md](README.md): operating manual, commands, capabilities and limits.
 - [coding-rules.md](context/dev_guides/coding-rules.md): implementation and acceptance rules.
 - [Developer guide index](context/dev_guides/README.md) and [testing guide](context/dev_guides/testing.md).
+- [CI/CD debugging guide](context/dev_guides/ci-cd-debugging.md): inspect pipeline runs with `gh`,
+  interpret skips, correlate AWS/Lambda logs and report failures.
 - [saas-techstack-guide.md](context/dev_guides/saas-techstack-guide.md): architecture.
 - [Handoff prompt](context/onboarding/run-this-prompt-after-setup.md): initial requirements/approval workflow.
 - Relevant [business documents](context/business_logic/) and [approved plans](context/plans/).

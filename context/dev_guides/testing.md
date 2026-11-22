@@ -169,6 +169,30 @@ Use the configured workflow for normal live acceptance. Manual runs require
 explicit environment/account authorization and the same isolation rules.
 Tests must never charge customers, send messages or mutate their data.
 
+## Verifying CI/CD results after a push
+
+The `gh` CLI is available to the coding session, so inspect the run for the commit
+you pushed instead of asking the owner to describe it. Confirm access with
+`gh auth status`; the token needs the `repo` scope to read runs, jobs and logs and
+the `workflow` scope to dispatch or rerun workflows. If the CLI is missing,
+unauthenticated or lacks a scope, ask the owner to authorize the session with
+`gh auth login` or `gh auth refresh -s repo,workflow`. Do not request, paste or
+store a token, and do not treat an inaccessible run as passing.
+
+```sh
+git rev-parse HEAD
+gh run list --branch dev --commit "$(git rev-parse HEAD)"
+gh run view <run-id>
+gh run view <run-id> --log-failed
+```
+
+Inspect the actual jobs and steps. A run URL, a green badge or the absence of a
+failure message is not verification. Confirm that the expected offline suites ran
+and, for a deployment, that `deploy` and **Test deployed website and API**
+actually executed instead of reporting `skipped`. Use
+[ci-cd-debugging.md](ci-cd-debugging.md) for skip interpretation, AWS/Lambda log
+correlation, rerun authorization and the failure report template.
+
 ## Checks and failure reporting
 
 - **Check changes and overrides** runs first and reads only allowed boolean
@@ -191,9 +215,11 @@ Tests must never charge customers, send messages or mutate their data.
   `requires-python` (>= 3.13) and runs Ruff, Black `--check` and mypy strict,
   failing the run on any violation. Use the same script for standalone checks;
   skipped gates are not passed gates.
-- Report the command, suite/result, environment/commit/Actions run for live
-  evidence, and remaining gaps. Coverage percentages, mocks and successful
-  builds are not substitutes for behavioral acceptance.
+- Report the command, suite/result, environment/commit and the inspected Actions
+  run (id/URL, jobs/steps and conclusions) for live evidence, and remaining gaps.
+  Naming a run, sharing its link or showing a green badge without inspecting its
+  jobs is not evidence. Coverage percentages, mocks and successful builds are not
+  substitutes for behavioral acceptance.
 
 ## Browser flake policy
 

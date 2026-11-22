@@ -720,7 +720,8 @@ context/
 |   +-- coding-rules.md             # 8 coding principles
 |   +-- README.md                   # Developer guide index and context map
 |   +-- testing.md                  # Test ownership, commands and live isolation
-|   +-- ci-cd-issues.md             # CI gate troubleshooting
+|   +-- ci-cd-issues.md             # Known CI gate and deployment symptoms
+|   +-- ci-cd-debugging.md          # Run/job logs, skips, Lambda correlation, reruns
 |   +-- aws-cli-resource-explorer.md # Read-only AWS CLI field guide
 |   +-- iam-issues.md               # IAM AccessDenied fixes
 |   +-- aws-admin-cloudshell.md     # AWS admin commands from CloudShell

@@ -153,6 +153,11 @@ remaining gaps rather than declaring untested integrations complete.
 5. Any failed check or cleanup fails the deployment. Green skipped steps do not
    prove a working deployment.
 
+When a run fails, inspect its jobs and logs with the `gh` CLI and follow
+[ci-cd-debugging.md](context/dev_guides/ci-cd-debugging.md) for skip
+interpretation, AWS/Lambda log correlation, rerun authorization and the failure
+report format.
+
 Setup creates an **empty** private repo, adds a `[skip ci]` initialization commit
 to the cloned shell's existing history, and seeds main. It creates dev at that
 same skipped commit, so neither initial branch triggers push-based CI.
