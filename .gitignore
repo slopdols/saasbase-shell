@@ -1,0 +1,53 @@
+# ===== Secrets & local env =====
+.env
+.env.local
+.env.*.local
+*.pem
+!**/.env.example
+setup.env
+.setup/
+.vercel/
+scripts/git-pull.ps1
+scripts/git-push.ps1
+
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+build/
+dist/
+
+# ===== Node =====
+node_modules/
+dist/
+*.log
+coverage/
+.vite/
+
+# ===== Testing / tooling =====
+playwright-report/
+test-results/
+
+# ===== IDE / OS =====
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# ===== IaC / AWS =====
+iac/**/*.zip
+*.template-export.json
+
+# ===== Binaries / plugins =====
+*.exe
+*.dll
+*.bin

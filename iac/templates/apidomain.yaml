@@ -1,0 +1,51 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Saasbase persistent API custom domain (optional). The ACM certificate is
+  provisioned OUT-OF-BAND (Certificate Manager). Without a certificate this
+  stack is a no-op so the master stack always deploys cleanly.
+
+Parameters:
+  Stage:
+    Type: String
+  AppName:
+    Type: String
+  ApiDomainName:
+    Type: String
+    Default: ''
+    Description: e.g. api.saasbase.example.com
+  ApiDomainCertificateArn:
+    Type: String
+    Default: ''
+    Description: ARN of the ACM certificate in us-east-2.
+
+Conditions:
+  HasDomain: !And
+    - !Not [!Equals [!Ref ApiDomainName, '']]
+    - !Not [!Equals [!Ref ApiDomainCertificateArn, '']]
+
+Resources:
+  DomainName:
+    Type: AWS::ApiGatewayV2::DomainName
+    Condition: HasDomain
+    Properties:
+      DomainName: !Ref ApiDomainName
+      DomainNameConfigurations:
+        - EndpointType: REGIONAL
+          CertificateArn: !Ref ApiDomainCertificateArn
+
+  # Optional: Route53 alias record pointing the domain to the API Gateway
+  # endpoint. Add a hosted zone parameter to enable.
+  # Route53Record:
+  #   Type: AWS::Route53::RecordSet
+  #   Condition: HasDomain
+  #   Properties:
+  #     HostedZoneName: example.com.
+  #     Name: !Ref ApiDomainName
+  #     Type: A
+  #     AliasTarget:
+  #       HostedZoneId: !GetAtt DomainName.RegionalHostedZoneId
+  #       DNSName: !GetAtt DomainName.RegionalDomainName
+
+Outputs:
+  ApiDomainName:
+    Value: !If [HasDomain, !Ref ApiDomainName, '']

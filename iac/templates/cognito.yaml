@@ -1,0 +1,110 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Saasbase Cognito - user pool, groups, app client (PKCE, no secret), hosted UI.
+
+Parameters:
+  Stage:
+    Type: String
+  AppName:
+    Type: String
+  WebsiteUrl:
+    Type: String
+    Default: ''
+
+Conditions:
+  # WebsiteUrl is optional (default ''). Cognito rejects callback/logout URLs
+  # without a scheme, so only set them when a full URL is provided.
+  HasWebsiteUrl: !Not [!Equals [!Ref WebsiteUrl, '']]
+
+Resources:
+  UserPool:
+    Type: AWS::Cognito::UserPool
+    Properties:
+      UserPoolName: !Sub '${AppName}-pool-${Stage}'
+      AutoVerifiedAttributes:
+        - email
+      UsernameAttributes:
+        - email
+      Policies:
+        PasswordPolicy:
+          MinimumLength: 8
+          RequireLowercase: true
+          RequireUppercase: true
+          RequireNumbers: true
+          RequireSymbols: true
+      Schema:
+        - Name: email
+          AttributeDataType: String
+          Mutable: true
+          Required: true
+        - Name: preferred_username
+          AttributeDataType: String
+          Mutable: true
+          Required: false
+      AdminCreateUserConfig:
+        AllowAdminCreateUserOnly: false
+
+  UserPoolClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties:
+      ClientName: !Sub '${AppName}-web-${Stage}'
+      UserPoolId: !Ref UserPool
+      GenerateSecret: false
+      PreventUserExistenceErrors: ENABLED
+      ExplicitAuthFlows:
+        - ALLOW_USER_PASSWORD_AUTH
+        - ALLOW_REFRESH_TOKEN_AUTH
+      AllowedOAuthFlows:
+        - code
+      AllowedOAuthFlowsUserPoolClient: true
+      AllowedOAuthScopes:
+        - email
+        - openid
+        - profile
+      CallbackURLs: !If
+        - HasWebsiteUrl
+        - - !Sub '${WebsiteUrl}/callback'
+        - !Ref 'AWS::NoValue'
+      LogoutURLs: !If
+        - HasWebsiteUrl
+        - - !Sub '${WebsiteUrl}/logout'
+        - !Ref 'AWS::NoValue'
+      SupportedIdentityProviders:
+        - COGNITO
+
+  UserPoolDomain:
+    Type: AWS::Cognito::UserPoolDomain
+    Properties:
+      Domain: !Sub '${AppName}-${AWS::AccountId}-${Stage}'
+      UserPoolId: !Ref UserPool
+
+  AdvertiserGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: advertiser
+      UserPoolId: !Ref UserPool
+      Description: Advertiser group (auto-assigned at sign-up via post-confirmation trigger).
+
+  AdminGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Properties:
+      GroupName: admin
+      UserPoolId: !Ref UserPool
+      Description: Administrators (assigned manually).
+
+Outputs:
+  UserPoolId:
+    Value: !Ref UserPool
+    Export:
+      Name: !Sub '${AppName}-${Stage}-user-pool-id'
+  UserPoolClientId:
+    Value: !Ref UserPoolClient
+    Export:
+      Name: !Sub '${AppName}-${Stage}-user-pool-client-id'
+  Issuer:
+    Value: !Sub 'https://cognito-idp.${AWS::Region}.amazonaws.com/${UserPool}'
+    Export:
+      Name: !Sub '${AppName}-${Stage}-cognito-issuer'
+  HostedUIDomain:
+    Value: !Sub 'https://${UserPoolDomain}.auth.${AWS::Region}.amazoncognito.com'
+    Export:
+      Name: !Sub '${AppName}-${Stage}-hosted-ui-domain'

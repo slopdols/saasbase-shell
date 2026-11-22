@@ -1,0 +1,122 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Saasbase master stack. Orchestrates nested stacks, one per AWS service.
+  Two-phase provisioning:
+    Phase 1 (DeployLambdas=false): stateful resources - ECR, DynamoDB, Cognito,
+    IAM, Secrets, persistent API domain.
+    Phase 2 (DeployLambdas=true): compute - Lambda (with ECR image), API Gateway,
+    domain mapping.
+
+Parameters:
+  Stage:
+    Type: String
+    AllowedValues: [dev, prod]
+    Description: Deployment stage (matches the git branch name).
+  AppName:
+    Type: String
+    Default: saasbase
+    AllowedPattern: '^[a-z][a-z0-9-]{1,22}[a-z0-9]$'
+    Description: Unique application prefix, 3-24 lowercase letters, digits or hyphens.
+  DeployLambdas:
+    Type: String
+    AllowedValues: ['true', 'false']
+    Default: 'false'
+    Description: Phase 2 gate. 'false' = stateful resources only; 'true' = compute on top.
+  TemplatesBucket:
+    Type: String
+    Description: S3 bucket that holds the nested templates (created by ensure-templates-bucket.sh).
+  ApiImageUri:
+    Type: String
+    Default: ''
+    Description: ECR image URI for the Lambda (e.g. 123456789012.dkr.ecr.us-east-2.amazonaws.com/saasbase-api-dev:latest).
+  WebsiteUrl:
+    Type: String
+    Default: ''
+    Description: Canonical website URL (for CORS / Cognito callback).
+  AdminSub:
+    Type: String
+    Default: ''
+    Description: Cognito sub of the admin user (injected as env var to the Lambda).
+
+Conditions:
+  DeployCompute: !Equals [!Ref DeployLambdas, 'true']
+
+Resources:
+  DynamoDB:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub 'https://s3.${AWS::Region}.amazonaws.com/${TemplatesBucket}/${Stage}/templates/dynamodb.yaml'
+      Parameters:
+        Stage: !Ref Stage
+        AppName: !Ref AppName
+
+  Cognito:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub 'https://s3.${AWS::Region}.amazonaws.com/${TemplatesBucket}/${Stage}/templates/cognito.yaml'
+      Parameters:
+        Stage: !Ref Stage
+        AppName: !Ref AppName
+        WebsiteUrl: !Ref WebsiteUrl
+
+  ECR:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub 'https://s3.${AWS::Region}.amazonaws.com/${TemplatesBucket}/${Stage}/templates/ecr.yaml'
+      Parameters:
+        Stage: !Ref Stage
+        AppName: !Ref AppName
+
+  IAM:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub 'https://s3.${AWS::Region}.amazonaws.com/${TemplatesBucket}/${Stage}/templates/iam.yaml'
+      Parameters:
+        Stage: !Ref Stage
+        AppName: !Ref AppName
+        UserPoolId: !GetAtt Cognito.Outputs.UserPoolId
+
+  Secrets:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub 'https://s3.${AWS::Region}.amazonaws.com/${TemplatesBucket}/${Stage}/templates/secrets.yaml'
+      Parameters:
+        Stage: !Ref Stage
+        AppName: !Ref AppName
+
+  APIDomain:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub 'https://s3.${AWS::Region}.amazonaws.com/${TemplatesBucket}/${Stage}/templates/apidomain.yaml'
+      Parameters:
+        Stage: !Ref Stage
+        AppName: !Ref AppName
+
+  Lambda:
+    Type: AWS::CloudFormation::Stack
+    Condition: DeployCompute
+    DependsOn: [DynamoDB, Cognito, ECR, IAM, Secrets]
+    Properties:
+      TemplateURL: !Sub 'https://s3.${AWS::Region}.amazonaws.com/${TemplatesBucket}/${Stage}/templates/lambda.yaml'
+      Parameters:
+        Stage: !Ref Stage
+        AppName: !Ref AppName
+        ApiImageUri: !Ref ApiImageUri
+        AdminSub: !Ref AdminSub
+        WebsiteUrl: !Ref WebsiteUrl
+
+  APIGateway:
+    Type: AWS::CloudFormation::Stack
+    Condition: DeployCompute
+    DependsOn: Lambda
+    Properties:
+      TemplateURL: !Sub 'https://s3.${AWS::Region}.amazonaws.com/${TemplatesBucket}/${Stage}/templates/apigateway.yaml'
+      Parameters:
+        Stage: !Ref Stage
+        AppName: !Ref AppName
+
+Outputs:
+  Stage:
+    Value: !Ref Stage
+  DeployLambdas:
+    Value: !Ref DeployLambdas

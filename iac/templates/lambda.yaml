@@ -1,0 +1,147 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Saasbase Lambda function (container image) + CloudWatch alarms + SNS.
+
+Parameters:
+  Stage:
+    Type: String
+  AppName:
+    Type: String
+  ApiImageUri:
+    Type: String
+  AdminSub:
+    Type: String
+    Default: ''
+  WebsiteUrl:
+    Type: String
+    Default: ''
+
+Resources:
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/aws/lambda/${AppName}-api-${Stage}'
+      RetentionInDays: 14
+
+  Function:
+    Type: AWS::Lambda::Function
+    DependsOn: LogGroup
+    Properties:
+      FunctionName: !Sub '${AppName}-api-${Stage}'
+      PackageType: Image
+      Code:
+        ImageUri: !Ref ApiImageUri
+      Role:
+        Fn::ImportValue:
+          Fn::Sub: '${AppName}-${Stage}-lambda-exec-role'
+      Timeout: 15
+      MemorySize: 1024
+      TracingConfig:
+        Mode: Active
+      Environment:
+        Variables:
+          SAASBASE_ENVIRONMENT: !Ref Stage
+          SAASBASE_DB_BACKEND: dynamo
+          SAASBASE_REGION: !Ref AWS::Region
+          SAASBASE_TABLE_MAIN:
+            Fn::ImportValue:
+              Fn::Sub: '${AppName}-${Stage}-main-table'
+          SAASBASE_TABLE_LEDGER:
+            Fn::ImportValue:
+              Fn::Sub: '${AppName}-${Stage}-ledger-table'
+          SAASBASE_TABLE_THROTTLE:
+            Fn::ImportValue:
+              Fn::Sub: '${AppName}-${Stage}-throttle-table'
+          SAASBASE_TABLE_WEBMETRICS:
+            Fn::ImportValue:
+              Fn::Sub: '${AppName}-${Stage}-webmetrics-table'
+          SAASBASE_COGNITO_USER_POOL_ID:
+            Fn::ImportValue:
+              Fn::Sub: '${AppName}-${Stage}-user-pool-id'
+          SAASBASE_COGNITO_ISSUER:
+            Fn::ImportValue:
+              Fn::Sub: '${AppName}-${Stage}-cognito-issuer'
+          SAASBASE_COGNITO_AUDIENCE:
+            Fn::ImportValue:
+              Fn::Sub: '${AppName}-${Stage}-user-pool-client-id'
+          SAASBASE_COGNITO_JWKS_URL: !Sub
+            - '${Issuer}/.well-known/jwks.json'
+            - Issuer:
+                Fn::ImportValue:
+                  Fn::Sub: '${AppName}-${Stage}-cognito-issuer'
+          SAASBASE_SECRETS_ARN:
+            Fn::ImportValue:
+              Fn::Sub: '${AppName}-${Stage}-secrets-arn'
+          SAASBASE_ADMIN_SUB: !Ref AdminSub
+          SAASBASE_CORS_ORIGINS: !Sub '["${WebsiteUrl}"]'
+
+  AlarmTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub '${AppName}-alerts-${Stage}'
+      # Add email/Telegram subscriptions out-of-band or via a manual subscription.
+
+  ErrorAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${AppName}-${Stage}-lambda-errors'
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      EvaluationPeriods: 1
+      Threshold: 1
+      Period: 300
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref Function
+      Statistic: Sum
+      AlarmActions:
+        - !Ref AlarmTopic
+
+  ThrottleAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${AppName}-${Stage}-lambda-throttles'
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      EvaluationPeriods: 1
+      Threshold: 1
+      Period: 300
+      Namespace: AWS/Lambda
+      MetricName: Throttles
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref Function
+      Statistic: Sum
+      AlarmActions:
+        - !Ref AlarmTopic
+
+  LatencyAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub '${AppName}-${Stage}-lambda-p99-latency'
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      EvaluationPeriods: 1
+      Threshold: 2000
+      Period: 300
+      Namespace: AWS/Lambda
+      MetricName: Duration
+      Dimensions:
+        - Name: FunctionName
+          Value: !Ref Function
+      ExtendedStatistic: p99
+      Unit: Milliseconds
+      AlarmActions:
+        - !Ref AlarmTopic
+
+Outputs:
+  FunctionName:
+    Value: !Ref Function
+    Export:
+      Name: !Sub '${AppName}-${Stage}-lambda-function-name'
+  FunctionArn:
+    Value: !GetAtt Function.Arn
+    Export:
+      Name: !Sub '${AppName}-${Stage}-lambda-function-arn'
+  AlarmTopicArn:
+    Value: !Ref AlarmTopic
+    Export:
+      Name: !Sub '${AppName}-${Stage}-alarm-topic-arn'

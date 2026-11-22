@@ -1,0 +1,65 @@
+{
+  "app": {
+    "name": "Saasbase",
+    "tagline": "Tu base SaaS genérica",
+    "dismissNotice": "Cerrar aviso"
+  },
+  "nav": {
+    "home": "Inicio",
+    "dashboard": "Panel",
+    "login": "Iniciar sesión",
+    "logout": "Cerrar sesión"
+  },
+  "home": {
+    "title": "Bienvenido a Saasbase",
+    "subtitle": "Un cascarón de SaaS listo para crecer: FastAPI + Vue 3 + AWS.",
+    "ctaDashboard": "Ir al panel",
+    "ctaLogin": "Iniciar sesión",
+    "feature1Title": "API FastAPI",
+    "feature1Text": "Capa CRUD, auth y errores centralizados listos para usar.",
+    "feature2Title": "Vue 3 SPA",
+    "feature2Text": "Mocks incluidos: desarrolla sin backend ni Cognito.",
+    "feature3Title": "IaC + CI/CD",
+    "feature3Text": "CloudFormation y GitHub Actions para dev y prod."
+  },
+  "login": {
+    "title": "Iniciar sesión",
+    "emailLabel": "Correo electrónico",
+    "emailPlaceholder": "tu{at}correo.com",
+    "submit": "Entrar",
+    "mockNote": "Modo mock: cualquier correo inicia sesión.",
+    "success": "Sesión iniciada",
+    "passwordLabel": "Contraseña",
+    "passwordHelp": "Mínimo 8 caracteres, con mayúsculas, minúsculas, números y símbolos.",
+    "registerTitle": "Crear cuenta",
+    "register": "Crear cuenta",
+    "confirmTitle": "Verificar correo",
+    "confirmHelp": "Introduce el código enviado a tu correo.",
+    "codeLabel": "Código de verificación",
+    "confirm": "Verificar",
+    "resend": "Reenviar código",
+    "codeSent": "Código enviado. Revisa tu correo.",
+    "confirmed": "Cuenta verificada. Inicia sesión.",
+    "backToLogin": "Volver al inicio de sesión"
+  },
+  "dashboard": {
+    "title": "Panel",
+    "welcome": "Hola, {email}",
+    "createItem": "Crear ítem",
+    "itemName": "Nombre del ítem",
+    "itemNamePlaceholder": "Escribe un nombre...",
+    "create": "Crear",
+    "itemsEmpty": "No hay ítems todavía.",
+    "delete": "Eliminar",
+    "itemsError": "No se pudieron cargar los ítems.",
+    "created": "Ítem creado",
+    "deleted": "Ítem eliminado"
+  },
+  "notFound": {
+    "title": "Página no encontrada",
+    "back": "Volver al inicio"
+  },
+  "errors": {
+    "generic": "Ocurrió un error inesperado."
+  }
+}

@@ -1,0 +1,11 @@
+# Dev-only dependencies (never shipped in the Lambda image)
+-r api/requirements.txt
+
+pytest==8.3.5
+pytest-cov==6.0.0
+pytest-xdist==3.6.1
+moto[dynamodb,secretsmanager]==5.1.0
+httpx==0.28.1
+ruff==0.11.6
+black==25.1.0
+mypy==1.15.0

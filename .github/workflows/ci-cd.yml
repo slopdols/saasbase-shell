@@ -1,0 +1,296 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main, dev]
+  pull_request:
+    branches: [main, dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deployment-plan:
+    name: Check changes and overrides
+    runs-on: ubuntu-latest
+    outputs:
+      deploy_backend: ${{ steps.plan.outputs.deploy_backend }}
+      deploy_website: ${{ steps.plan.outputs.deploy_website }}
+      deploy_infrastructure: ${{ steps.plan.outputs.deploy_infrastructure }}
+      run_test_infrastructure: ${{ steps.plan.outputs.run_test_infrastructure }}
+      run_test_backend: ${{ steps.plan.outputs.run_test_backend }}
+      run_test_website: ${{ steps.plan.outputs.run_test_website }}
+      run_test_website_unit: ${{ steps.plan.outputs.run_test_website_unit }}
+      run_test_website_e2e: ${{ steps.plan.outputs.run_test_website_e2e }}
+      run_test_website_auth: ${{ steps.plan.outputs.run_test_website_auth }}
+      run_post_deploy_tests: ${{ steps.plan.outputs.run_post_deploy_tests }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Resolve deployment and test plan
+        id: plan
+        env:
+          GITHUB_EVENT_BEFORE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          GITHUB_SHA: ${{ github.sha }}
+        run: bash setup-scripts/resolve-deploy-plan.sh
+
+  test-infrastructure:
+    needs: deployment-plan
+    if: needs.deployment-plan.outputs.run_test_infrastructure == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Test deployment scripts
+        run: bash iac/tests/test-deploy-stack.sh
+      - name: Test PowerShell setup and publishing
+        shell: pwsh
+        run: ./setup-scripts/tests/run-tests.ps1
+      - name: Test deployment plan flags
+        run: bash setup-scripts/tests/test-deploy-plan.sh
+      - name: Test setup tool installers
+        run: bash setup-scripts/tests/test-install-tools.sh
+      - name: Lint CloudFormation resource schemas
+        run: |
+          python -m pip install cfn-lint==1.57.2
+          cfn-lint --non-zero-exit-code error --template iac/main.yaml iac/templates/*.yaml
+
+  test-backend:
+    needs: deployment-plan
+    if: needs.deployment-plan.outputs.run_test_backend == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - run: python -m pip install -r requirements-dev.txt
+      - run: python -m pytest --import-mode=importlib
+
+  test-website:
+    needs: deployment-plan
+    if: needs.deployment-plan.outputs.run_test_website == 'true'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+      - run: npm ci
+      - name: Test frontend units
+        if: needs.deployment-plan.outputs.run_test_website_unit == 'true'
+        run: npm run test:unit
+      - name: Install local browser test runtime
+        if: needs.deployment-plan.outputs.run_test_website_e2e == 'true' || needs.deployment-plan.outputs.run_test_website_auth == 'true'
+        run: npx playwright install --with-deps chromium
+      - name: Test local browser workflows
+        if: needs.deployment-plan.outputs.run_test_website_e2e == 'true'
+        run: npm run test:e2e
+      - name: Test native-auth browser workflows
+        if: needs.deployment-plan.outputs.run_test_website_auth == 'true'
+        run: npm run test:e2e:auth
+
+  deploy:
+    needs: [test-infrastructure, test-backend, test-website, deployment-plan]
+    if: >-
+      always() && !cancelled() &&
+      needs.deployment-plan.result == 'success' &&
+      !contains(needs.*.result, 'failure') &&
+      !contains(needs.*.result, 'cancelled') &&
+      github.event_name != 'pull_request' &&
+      (github.ref_name == 'main' || github.ref_name == 'dev') &&
+      (needs.deployment-plan.outputs.deploy_backend == 'true' ||
+       needs.deployment-plan.outputs.deploy_website == 'true')
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    outputs:
+      api_url: ${{ steps.backend.outputs.api_url }}
+      cognito_client_id: ${{ steps.backend.outputs.cognito_client_id }}
+      cognito_issuer: ${{ steps.backend.outputs.cognito_issuer }}
+    permissions:
+      contents: read
+      id-token: write
+    environment:
+      name: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+    env:
+      APP_NAME: ${{ vars.APP_NAME }}
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+      WEBSITE_URL: ${{ vars.WEBSITE_URL }}
+      ADMIN_SUB: ${{ vars.ADMIN_SUB }}
+      STAGE: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+      VERCEL_ORG_ID: ${{ vars.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      DEPLOY_BACKEND: ${{ needs.deployment-plan.outputs.deploy_backend }}
+      DEPLOY_WEBSITE: ${{ needs.deployment-plan.outputs.deploy_website }}
+      DEPLOY_INFRASTRUCTURE: ${{ needs.deployment-plan.outputs.deploy_infrastructure }}
+      RUN_POST_DEPLOY_TESTS: ${{ needs.deployment-plan.outputs.run_post_deploy_tests }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check setup configuration
+        env:
+          AWS_ROLE_ARN: ${{ secrets.AWS_ROLE_ARN }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: |
+          for name in APP_NAME AWS_REGION AWS_ACCOUNT_ID AWS_ROLE_ARN WEBSITE_URL; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Missing $name. Configure the selected GitHub environment as described in setup.md, then rerun this workflow."
+              exit 1
+            fi
+          done
+          if [ "$DEPLOY_WEBSITE" = "true" ]; then
+            for name in WEBSITE_URL VERCEL_ORG_ID VERCEL_PROJECT_ID VERCEL_TOKEN; do
+              if [ -z "${!name}" ]; then
+                echo "::error::Missing $name. Configure the selected GitHub environment as described in setup.md, then rerun this workflow."
+                exit 1
+              fi
+            done
+          fi
+          if [ "$STAGE" = "dev" ] && { [ "$DEPLOY_WEBSITE" = "true" ] || [ "$RUN_POST_DEPLOY_TESTS" = "true" ]; } && [ -z "$VERCEL_AUTOMATION_BYPASS_SECRET" ]; then
+            echo "::error::Missing VERCEL_AUTOMATION_BYPASS_SECRET. Configure the dev environment secret for protected Previews."
+            exit 1
+          fi
+      - name: Configure temporary AWS credentials
+        id: credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Reject credentials for another AWS account
+        if: steps.credentials.outputs.aws-account-id != env.AWS_ACCOUNT_ID
+        run: |
+          echo "::error::The assumed role does not belong to the configured AWS account."
+          exit 1
+      - name: Validate CloudFormation templates
+        if: needs.deployment-plan.outputs.deploy_infrastructure == 'true'
+        run: bash iac/scripts/validate-templates.sh
+      - name: Bootstrap/update stateful resources without disabling compute
+        if: needs.deployment-plan.outputs.deploy_infrastructure == 'true'
+        run: bash iac/scripts/deploy-stack.sh "$STAGE" 1
+      - name: Login to ECR
+        id: ecr
+        if: needs.deployment-plan.outputs.deploy_backend == 'true'
+        uses: aws-actions/amazon-ecr-login@v2
+      - uses: docker/setup-buildx-action@v3
+        if: needs.deployment-plan.outputs.deploy_backend == 'true'
+      - name: Build and push Lambda image
+        id: image
+        if: needs.deployment-plan.outputs.deploy_backend == 'true'
+        uses: docker/build-push-action@v6
+        with:
+          context: backend/api
+          file: backend/api/Dockerfile
+          platforms: linux/amd64
+          provenance: false
+          sbom: false
+          push: true
+          tags: ${{ steps.ecr.outputs.registry }}/${{ env.APP_NAME }}-api-${{ env.STAGE }}:${{ github.sha }}
+      - name: Deploy Lambda and API Gateway
+        if: needs.deployment-plan.outputs.deploy_infrastructure == 'true'
+        env:
+          API_IMAGE_URI: ${{ steps.ecr.outputs.registry }}/${{ env.APP_NAME }}-api-${{ env.STAGE }}@${{ steps.image.outputs.digest }}
+        run: bash iac/scripts/deploy-stack.sh "$STAGE" 2
+      - name: Update Lambda image without reprovisioning infrastructure
+        if: needs.deployment-plan.outputs.deploy_backend == 'true' && needs.deployment-plan.outputs.deploy_infrastructure != 'true'
+        env:
+          API_IMAGE_URI: ${{ steps.ecr.outputs.registry }}/${{ env.APP_NAME }}-api-${{ env.STAGE }}@${{ steps.image.outputs.digest }}
+        run: bash iac/scripts/deploy-stack.sh "$STAGE" 2
+      - name: Resolve backend URL and check health
+        if: needs.deployment-plan.outputs.deploy_backend == 'true' || needs.deployment-plan.outputs.deploy_website == 'true'
+        id: backend
+        shell: pwsh
+        run: |
+          . ./setup-scripts/common.ps1
+          $outputs = Get-BackendDeploymentOutputs -AppName $env:APP_NAME -Stage $env:STAGE -Region $env:AWS_REGION
+          $null = Invoke-Checked curl -Arguments @('--fail', '--silent', '--show-error', '--retry', '3', '--retry-delay', '5', "$($outputs.api_url)/health")
+          foreach ($entry in $outputs.GetEnumerator()) {
+            Add-Content -LiteralPath $env:GITHUB_OUTPUT -Value "$($entry.Key)=$($entry.Value)" -Encoding utf8NoBOM
+          }
+      - uses: actions/setup-node@v4
+        if: needs.deployment-plan.outputs.deploy_website == 'true'
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+      - name: Install frontend dependencies
+        if: needs.deployment-plan.outputs.deploy_website == 'true'
+        working-directory: website
+        run: npm ci
+      - name: Build, deploy and verify frontend
+        if: needs.deployment-plan.outputs.deploy_website == 'true'
+        shell: pwsh
+        env:
+          API_URL: ${{ steps.backend.outputs.api_url }}
+          VUE_APP_COGNITO_CLIENT_ID: ${{ steps.backend.outputs.cognito_client_id }}
+          VUE_APP_COGNITO_ISSUER: ${{ steps.backend.outputs.cognito_issuer }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: ./setup-scripts/publish-website.ps1 -Stage $env:STAGE -ApiUrl $env:API_URL -WebsiteUrl $env:WEBSITE_URL
+  test-deployed:
+    name: Test deployed website and API
+    needs: [deployment-plan, deploy]
+    if: needs.deploy.result == 'success' && needs.deployment-plan.outputs.run_post_deploy_tests == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
+    environment:
+      name: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+    env:
+      APP_NAME: ${{ vars.APP_NAME }}
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      AWS_ACCOUNT_ID: ${{ vars.AWS_ACCOUNT_ID }}
+      WEBSITE_URL: ${{ vars.WEBSITE_URL }}
+      STAGE: ${{ github.ref_name == 'main' && 'prod' || 'dev' }}
+      API_URL: ${{ needs.deploy.outputs.api_url }}
+      VUE_APP_COGNITO_CLIENT_ID: ${{ needs.deploy.outputs.cognito_client_id }}
+      VUE_APP_COGNITO_ISSUER: ${{ needs.deploy.outputs.cognito_issuer }}
+      RUN_AUTH_SMOKE_TESTS: ${{ vars.RUN_AUTH_SMOKE_TESTS }}
+      VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure temporary AWS credentials for live tests
+        id: credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Reject live-test credentials for another AWS account
+        if: steps.credentials.outputs.aws-account-id != env.AWS_ACCOUNT_ID
+        run: |
+          echo "::error::The assumed test role does not belong to the configured AWS account."
+          exit 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: website/package-lock.json
+      - name: Install deployed browser dependencies
+        working-directory: website
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install deployed test SDK
+        run: python -m pip install -r backend/api/requirements.txt
+      - name: Verify live API and browser contracts
+        run: python setup-scripts/test-deployment.py
