@@ -2,6 +2,7 @@
 
 Fill in with real templates/verification once the product needs email.
 """
+
 from __future__ import annotations
 
 import boto3

@@ -4,11 +4,13 @@ Emits one CloudWatch EMF JSON line per request. CloudWatch Logs parses
 EMF lines into metrics automatically. The route template is used, never
 the raw path (keeps metric cardinality bounded).
 """
+
 from __future__ import annotations
 
 import json
 import time
-from typing import Any, Awaitable, Callable
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 from starlette.requests import Request
 from starlette.responses import Response

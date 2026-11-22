@@ -4,6 +4,7 @@ All domain errors extend AppError. They are translated to a consistent
 `{"error": {"code": ..., "message": ...}}` envelope at the single error
 boundary in api/main.py. Never catch-and-swallow outside this boundary.
 """
+
 from __future__ import annotations
 
 from typing import Any

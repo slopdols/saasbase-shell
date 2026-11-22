@@ -3,6 +3,7 @@
 - HMAC-SHA256: hash a token for lookup (never store the raw token).
 - Fernet: encrypt a secret (e.g. reveal a device token back to its owner).
 """
+
 from __future__ import annotations
 
 import hashlib

@@ -4,12 +4,14 @@
 - mock DynamoDB (moto) per test, bound to a fresh DynamoCrud.
 - Stubbed Cognito JWKS so valid JWTs can be minted and verified locally.
 """
+
 from __future__ import annotations
 
 import os
+from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
-from typing import Any, Callable
+from datetime import UTC, datetime, timedelta
+from typing import Any
 
 os.environ.setdefault("SAASBASE_ENVIRONMENT", "test")
 os.environ.setdefault("SAASBASE_DB_BACKEND", "dynamo")
@@ -18,9 +20,7 @@ os.environ.setdefault("SAASBASE_TABLE_MAIN", "saasbase-main-test")
 os.environ.setdefault("SAASBASE_TABLE_LEDGER", "saasbase-ledger-test")
 os.environ.setdefault("SAASBASE_TABLE_THROTTLE", "saasbase-throttle-test")
 os.environ.setdefault("SAASBASE_TABLE_WEBMETRICS", "saasbase-webmetrics-test")
-os.environ.setdefault(
-    "SAASBASE_COGNITO_ISSUER", "https://cognito-idp.us-east-2.amazonaws.com/test"
-)
+os.environ.setdefault("SAASBASE_COGNITO_ISSUER", "https://cognito-idp.us-east-2.amazonaws.com/test")
 os.environ.setdefault("SAASBASE_COGNITO_AUDIENCE", "test-audience")
 os.environ.setdefault(
     "SAASBASE_COGNITO_JWKS_URL",
@@ -45,10 +45,14 @@ TABLE = "saasbase-main-test"
 
 # --- RSA key pair to mint + verify test JWTs ---
 _private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-_public_pem = _private_key.public_key().public_bytes(
-    encoding=serialization.Encoding.PEM,
-    format=serialization.PublicFormat.SubjectPublicKeyInfo,
-).decode()
+_public_pem = (
+    _private_key.public_key()
+    .public_bytes(
+        encoding=serialization.Encoding.PEM,
+        format=serialization.PublicFormat.SubjectPublicKeyInfo,
+    )
+    .decode()
+)
 
 
 def make_jwt(
@@ -58,7 +62,7 @@ def make_jwt(
     token_use: str = "access",
     exp_delta_minutes: int = 60,
 ) -> str:
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     payload = {
         "sub": sub,
         "email": email,

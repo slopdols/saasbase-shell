@@ -1,4 +1,5 @@
 """CRUD layer tests: put/get, conflict, optimistic lock, soft delete, queries."""
+
 from __future__ import annotations
 
 import pytest
@@ -63,9 +64,7 @@ def test_main_key_query_with_prefix(crud: DynamoCrud) -> None:
 
 def test_gsi_query(crud: DynamoCrud) -> None:
     for i in range(3):
-        crud.put(
-            new_item("item", f"id{i}", gsi1_pk="OWNER#u1", gsi1_sk=f"ITEM#ts#{i}")
-        )
+        crud.put(new_item("item", f"id{i}", gsi1_pk="OWNER#u1", gsi1_sk=f"ITEM#ts#{i}"))
     items, cursor = crud.query_index("gsi1", "OWNER#u1", sk_prefix="ITEM#")
     assert len(items) == 3
     assert cursor is None

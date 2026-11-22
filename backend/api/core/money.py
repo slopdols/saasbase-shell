@@ -3,6 +3,7 @@
 Rule: money is ALWAYS an integer in minor units (cents/centavos), paired
 with an ISO-4217 currency code. Never floats. Convert for display ONLY.
 """
+
 from __future__ import annotations
 
 

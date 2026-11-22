@@ -4,9 +4,12 @@ Usage in routers:
     caller: Caller = Depends(require_caller)
     caller: Caller | None = Depends(optional_caller)
     caller: Caller = Depends(require_admin)
-    device: dict = Depends(require_device)
+    device: dict[str, Any] = Depends(require_device)
 """
+
 from __future__ import annotations
+
+from typing import Any
 
 from fastapi import Depends, Request
 
@@ -46,7 +49,7 @@ def require_admin(caller: Caller = Depends(require_caller)) -> Caller:
     return caller
 
 
-def require_device(request: Request) -> dict:
+def require_device(request: Request) -> dict[str, Any]:
     token = request.headers.get("X-Device-Token")
     if not token:
         raise UnauthorizedError("missing device token")

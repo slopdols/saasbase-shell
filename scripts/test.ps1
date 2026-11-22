@@ -28,6 +28,7 @@ try {
     Push-Location (Join-Path $root 'backend')
     try { Write-Host (Invoke-Checked python -Arguments @('-m', 'pytest', '--import-mode=importlib')) }
     finally { Pop-Location }
+    Write-Host (Invoke-Checked $bash -Arguments @('scripts/python-check.sh'))
     Push-Location (Join-Path $root 'website')
     try {
         foreach ($script in @('test:unit', 'test:e2e', 'test:e2e:auth', 'build')) {

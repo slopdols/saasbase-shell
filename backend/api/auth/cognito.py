@@ -3,6 +3,7 @@
 JWKS is fetched and cached for 1 hour. Verifies signature, issuer,
 audience, expiry, and token_use.
 """
+
 from __future__ import annotations
 
 from functools import lru_cache
@@ -28,7 +29,7 @@ def verify_jwt(token: str) -> dict[str, Any]:
     try:
         client = _jwks_client(settings.cognito_jwks_url)
         signing_key = client.get_signing_key_from_jwt(token)
-        payload = jwt.decode(
+        payload: dict[str, Any] = jwt.decode(
             token,
             signing_key.key,
             algorithms=["RS256"],

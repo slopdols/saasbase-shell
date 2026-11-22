@@ -4,6 +4,7 @@ Routers are thin; ALL logic lives here. This service demonstrates the
 CRUD layer: create (put), read (get), list (gsi1 query), update (optimistic
 lock), delete (soft delete).
 """
+
 from __future__ import annotations
 
 import uuid

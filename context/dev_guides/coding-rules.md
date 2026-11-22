@@ -81,6 +81,7 @@ isolation. Maintain important feature documentation using the
 | Ruff | rules `E, F, I, W, UP, B`; ignore `B008` (FastAPI `Depends()`) |
 | mypy | strict: `disallow_untyped_defs = true`, `no_implicit_optional = true` |
 | Imports | sorted via Ruff (isort-compatible) |
+| Enforcement | `scripts/python-check.sh` (Python version + Ruff + Black + mypy) runs after backend pytest in the full runner and CI; any violation fails the run |
 
 ## Feature delivery checklist
 
@@ -105,6 +106,9 @@ isolation. Maintain important feature documentation using the
 7. Report commands/results, deployed environment/run when verified, and remaining
    gaps. Documentation readiness, coverage numbers and mocks are not proof of a
    completed feature or working external integration.
+8. Update the applicable plan status and acceptance checkboxes in `context/plans/`
+   when implementation lands; the index must not describe pending work that is
+   already merged.
 
 ## Key Invariants
 
@@ -112,3 +116,9 @@ isolation. Maintain important feature documentation using the
 - Every entity update uses optimistic locking (`version`).
 - Money is never a float; timestamps are always ISO-8601 UTC.
 - Errors always reach the single error boundary.
+- Get-or-create must be idempotent and conflict-safe: concurrent first
+  reads/create attempts yield one record and one winner, proven by a required
+  conflict/race regression test.
+- Any change that alters observable product behavior updates the owning
+  `context/business_logic` document (or opens an explicit outstanding-decision
+  item) in the same change.

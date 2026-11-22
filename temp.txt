@@ -1,0 +1,80 @@
+update some docs and scripts based on this feedback from a repo under this shell:
+## Prevention - doc, test and script changes to stop recurrence
+
+Retrospective on the six issues above: could they have been avoided by
+stricter coding rules, `testing.md` or the test runner, and what changes
+would prevent them in the future. Proposed changes only - apply after owner
+approval. No code is changed by this document.
+
+### Could stricter rules/tests have prevented each issue?
+
+| # | Issue | Preventable? | How |
+|---|---|---|---|
+| 1 | Black/Ruff/mypy drift | **Yes, fully** | The tools were configured but `testing.md` explicitly says the runner does not invoke them. Making the runner/CI enforce them would have caught every failure at PR time. |
+| 2 | Flaky e2e under load | Partially | No rule fixes timing, but a flake policy (CI retries + reproduce-standalone triage) would stop one bad run from failing a pipeline. |
+| 3 | Business docs disagree with code | **Yes, fully** | Implementation notes changed business decisions (key issuance timing, plaintext-once reveal, client-side shortcut build) without a doc-sync step. A "behavior change must update or flag the business doc in the same change" rule would have prevented it. |
+| 4 | Settings first-read race | **Yes, fully** | A get-or-create idempotency rule plus a required conflict regression test would have caught it in review. |
+| 5 | Toolchain version mismatch | **Yes, fully** | A runner check that the interpreter satisfies `requires-python` (and a pinned README toolchain section) would have caught it immediately. |
+| 6 | Stale plan statuses | **Yes, fully** | A rule that plan status/acceptance checkboxes are updated in the implementing change (like AGENTS already requires for other docs) would have kept the index truthful. |
+
+### Proposed document changes (docs only; apply once approved)
+
+- `context/dev_guides/testing.md`:
+  1. Replace the "not currently invoked by the full runner" wording with:
+     the runner and CI **enforce** Ruff, Black and mypy (see script below).
+     Update the suite table and "Checks and failure reporting" accordingly.
+  2. Add a flake policy: browser tests that fail only under load get a
+     bounded `retries` setting in CI config and a reproduce-standalone
+     triage step; skips remain forbidden.
+  3. Add a required regression category: get-or-create paths must have a
+     conflict/race test (covers issue 4's fix).
+  4. Add an acceptance step: before handoff, diff the business docs against
+     the implemented contract (endpoints, fields, lifecycle, reveal rules)
+     and report disagreements, per the AGENTS invariant.
+- `context/dev_guides/coding-rules.md`:
+  1. Strengthen the Python Conventions table: the gates are **enforced by
+     the full runner and CI**, not just configured.
+  2. New invariant: get-or-create must be idempotent/conflict-safe.
+  3. New invariant: any change that alters observable product behavior must
+     update the owning `context/business_logic` document (or open an
+     explicit outstanding-decision item) in the same change.
+  4. Extend the feature delivery checklist with "update plan status and
+     acceptance checkboxes when implementation lands".
+- `AGENTS.md`: add the doc-sync and plan-status rules to the required
+  workflow/invariants so they apply to every agent run.
+- `README.md` toolchain section: pin Python 3.13 and state that the runner
+  verifies the interpreter version before running backend checks.
+
+### Proposed script to enforce the Python gates
+
+Add `scripts/python-check.sh` (plus a `.ps1` twin for the runner), invoked by
+`scripts/test.ps1` and by a new/same CI step, so the gates can never drift
+out of the pipeline again:
+
+```sh
+#!/usr/bin/env bash
+# Backend quality gate: Python version + Ruff + Black + mypy strict.
+# Invoked by scripts/test.ps1 and CI; fails the run on any violation.
+set -euo pipefail
+root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$root/backend"
+
+python -c 'import sys; sys.exit(0 if sys.version_info >= (3, 13) else "Python >= 3.13 required")'
+ruff check .
+black --check .
+mypy api
+```
+
+Runner integration: replace the current backend pytest-only block in
+`scripts/test.ps1` with `pytest` followed by `bash scripts/python-check.sh`
+(reusing the existing `Invoke-Checked` pattern). CI (`ci-cd.yml`) runs the
+same script in the backend job, so a failing PR is blocked with the exact
+same output as local runs.
+
+### Ordering
+
+Apply prevention changes together with the issue fixes they guard:
+1. Script + runner/CI wiring and doc edits (prevents issues 1 and 5).
+2. Coding-rule additions (prevents issues 3, 4 and 6).
+3. Testing.md flake policy (mitigates issue 2).
+Then re-run the full suite and the new gate script and report both.

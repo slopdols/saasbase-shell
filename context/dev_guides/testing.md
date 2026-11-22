@@ -24,7 +24,8 @@ bash ./scripts/test.sh
 
 The runner executes all PowerShell setup/operation/publishing/API-runner
 regressions, Bash deployment/planner/installer checks, all backend pytest cases,
-frontend unit tests, both local browser suites, a production frontend build and
+the backend quality gates (Python version, Ruff, Black and mypy strict), frontend
+unit tests, both local browser suites, a production frontend build and
 CloudFormation schema lint. It fails on missing tools or failed checks.
 It does not install dependencies, call live APIs or delete cloud resources.
 
@@ -58,6 +59,7 @@ Preserve this mode when adding scripts, including from Windows:
 | Suite | Files | Focused command |
 |---|---|---|
 | Backend units/helpers | `backend/tests/core/` | `python -m pytest --import-mode=importlib tests/core` from `backend` |
+| Backend quality gates | `scripts/python-check.sh`, `scripts/python-check.ps1` | `bash scripts/python-check.sh` (or `pwsh -File scripts/python-check.ps1`) from root |
 | Business services | `backend/tests/services/` | `python -m pytest --import-mode=importlib tests/services` from `backend` |
 | Storage integration | `backend/tests/crud/` | `python -m pytest --import-mode=importlib tests/crud` from `backend` |
 | HTTP/API/auth | `backend/tests/routers/` | `python -m pytest --import-mode=importlib tests/routers` from `backend` |
@@ -101,17 +103,25 @@ Never point local fixtures at customer accounts to compensate for a missing mock
    document new test/developer procedures here or in a focused subfolder.
 2. Add a focused regression that fails without the implementation. Reuse existing
    fixtures and test outputs, not private implementation details.
-3. For an API-backed feature, cover units/services/storage and the real FastAPI
+3. Get-or-create paths (settings, identities, configuration records) must include
+   a conflict/race regression: concurrent first reads/create attempts produce
+   exactly one record and one winner; the losing caller receives the existing
+   record without field loss or version corruption.
+4. For an API-backed feature, cover units/services/storage and the real FastAPI
    HTTP contract: status, response fields/values, validation, unauthenticated
    requests, wrong-owner/role access and stale versions where applicable.
-4. Cover frontend state/client behavior plus browser loading, empty, success and
+5. Cover frontend state/client behavior plus browser loading, empty, success and
    error states, navigation and permissions. Update local mocks with the actual
    API contract; do not let mocks hide missing backend behavior.
-5. Extend the deployed API/browser path for critical cross-system behavior.
+6. Extend the deployed API/browser path for critical cross-system behavior.
    Preserve per-run data isolation, explicit failure and cleanup.
-6. Update requirement/orientation links, run all local suites and report actual
+7. Update requirement/orientation links, run all local suites and report actual
    results. Explain genuinely inapplicable layers; do not add trivial tests just
    to claim every category is covered.
+8. Before handoff, diff the business documents against the implemented contract
+   (endpoints, fields, lifecycle, reveal rules) and report disagreements. Any
+   observable behavior change must have updated the owning business document or
+   opened an explicit outstanding-decision item in the same change.
 
 The sample [item API tests](../../backend/tests/routers/test_items.py) illustrate
 201 creation, 401 missing identity, 403 wrong owner, 404 missing/deleted items,
@@ -176,9 +186,22 @@ Tests must never charge customers, send messages or mutate their data.
 - Playwright startup failures: inspect the configured server/port and toolchain,
   not just the test selector. Authentication challenges, unexpected payloads and
   cleanup failures must surface as failures.
-- Black/Ruff/mypy are configured in `backend/pyproject.toml`; they are not currently
-  invoked by the full runner. Use the existing tools separately when relevant,
-  and do not claim the runner performs Python type/format checks.
+- Backend quality gates are **enforced by the full runner and CI**: after backend
+  pytest, `scripts/python-check.sh` verifies the interpreter satisfies
+  `requires-python` (>= 3.13) and runs Ruff, Black `--check` and mypy strict,
+  failing the run on any violation. Use the same script for standalone checks;
+  skipped gates are not passed gates.
 - Report the command, suite/result, environment/commit/Actions run for live
   evidence, and remaining gaps. Coverage percentages, mocks and successful
   builds are not substitutes for behavioral acceptance.
+
+## Browser flake policy
+
+- Playwright configs retry once only under `CI=true` (GitHub Actions and the
+  full local runner): each failed mock-first/native-auth test retries once.
+  Standalone focused commands run without `CI` and keep `retries = 0`, so a
+  flake can be reproduced deterministically outside load.
+- A test that fails on its retry attempt is a real defect. Reproduce it
+  standalone with the focused command from the suite table, then fix or report
+  it; do not dismiss failures as load noise without evidence.
+- Skips remain forbidden: never mark a flaky test skipped to make a suite green.

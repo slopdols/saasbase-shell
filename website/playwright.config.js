@@ -6,7 +6,10 @@ module.exports = defineConfig({
   testDir: './e2e',
   testIgnore: ['**/auth.spec.js', '**/deployed/**'],
   timeout: 30000,
-  retries: 0,
+  // Bounded CI-only retries: one retry per failed test under CI (GitHub Actions
+  // and the full local runner). Standalone focused runs keep 0 so flakes stay
+  // reproducible; skips remain forbidden.
+  retries: process.env.CI ? 1 : 0,
   use: {
     baseURL,
     trace: 'on-first-retry'

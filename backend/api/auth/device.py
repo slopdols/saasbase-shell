@@ -3,6 +3,7 @@
 32-byte random token issued to the client. The token is HMAC-SHA256 hashed
 for storage/lookup and Fernet-encrypted for safe reveal back to the owner.
 """
+
 from __future__ import annotations
 
 import secrets

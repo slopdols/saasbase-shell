@@ -1,4 +1,5 @@
 """Money invariants: integer minor units, NEVER floats."""
+
 from __future__ import annotations
 
 import pytest

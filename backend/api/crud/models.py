@@ -3,6 +3,7 @@
 Single-table design: every item carries a standard set of columns.
 `new_item()` fills them all so callers can't forget one.
 """
+
 from __future__ import annotations
 
 from typing import Any

@@ -2,6 +2,7 @@
 
 This test MUST fail if any route becomes under-protected. Critical security gate.
 """
+
 from __future__ import annotations
 
 from tests.conftest import ApiEnv
@@ -31,9 +32,7 @@ def test_route_protection_matrix(api: ApiEnv) -> None:
 
 
 def test_admin_route_rejects_non_admin(api: ApiEnv) -> None:
-    resp = api.client.get(
-        "/v1/auth/admin/status", headers=api.auth(groups=["advertiser"])
-    )
+    resp = api.client.get("/v1/auth/admin/status", headers=api.auth(groups=["advertiser"]))
     assert resp.status_code == 403
 
 

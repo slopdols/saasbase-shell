@@ -1,4 +1,5 @@
 """Item CRUD endpoint tests (auth + optimistic locking + owner isolation)."""
+
 from __future__ import annotations
 
 from tests.conftest import ApiEnv

@@ -3,12 +3,14 @@
 Placeholder only. Every method raises NotImplementedError so a misconfigured
 backend fails loudly instead of silently corrupting data.
 """
+
 from __future__ import annotations
 
-from typing import Any, Sequence
+from collections.abc import Sequence
+from typing import Any, NoReturn
 
 
-def _not_implemented(name: str) -> None:
+def _not_implemented(name: str) -> NoReturn:
     raise NotImplementedError(
         f"RelationalCrud.{name} is not implemented yet. "
         "Set SAASBASE_DB_BACKEND=dynamo to use the active backend."

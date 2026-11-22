@@ -3,6 +3,7 @@
 Stripe is the source of truth for money. Only Stripe webhooks may set
 `payment_status=paid`. Fill in checkout/Connect flows once defined.
 """
+
 from __future__ import annotations
 
 import stripe

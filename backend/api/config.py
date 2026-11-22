@@ -3,6 +3,7 @@
 Every field maps to a `SAASBASE_<NAME>` env var (or `.env` entry).
 In production, values can be injected from AWS Secrets Manager at cold start.
 """
+
 from functools import lru_cache
 from typing import Literal
 

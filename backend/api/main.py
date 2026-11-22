@@ -5,6 +5,7 @@
 
 One codebase, two runtimes. The same `app` object runs both ways.
 """
+
 from __future__ import annotations
 
 from fastapi import FastAPI, Request
@@ -70,12 +71,8 @@ async def validation_error_handler(  # type: ignore[no-untyped-def]
 
 @app.exception_handler(Exception)
 async def unhandled_error_handler(request: Request, exc: Exception):  # type: ignore[no-untyped-def]
-    logger.exception(
-        "unhandled error on %s %s", request.method, request.url.path, exc_info=exc
-    )
-    alert_async(
-        f"Unhandled error on {request.method} {request.url.path}", level="error"
-    )
+    logger.exception("unhandled error on %s %s", request.method, request.url.path, exc_info=exc)
+    alert_async(f"Unhandled error on {request.method} {request.url.path}", level="error")
     return JSONResponse(
         status_code=500,
         content={"error": {"code": "internal_error", "message": "internal error"}},

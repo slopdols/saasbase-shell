@@ -3,6 +3,7 @@
 Caller is the authenticated identity attached to every request.
 Admins bypass all group/owner checks.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass, field
@@ -21,7 +22,7 @@ class Caller:
     is_anonymous: bool = False
 
     @classmethod
-    def from_jwt(cls, payload: dict[str, Any]) -> "Caller":
+    def from_jwt(cls, payload: dict[str, Any]) -> Caller:
         groups = payload.get("cognito:groups") or []
         return cls(
             sub=payload["sub"],

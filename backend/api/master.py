@@ -4,6 +4,7 @@ These are DEFAULTS ONLY - every value is overridable via config/env/Secrets.
 Placeholder values for a generic shell; replace with real business rules
 when the product is defined.
 """
+
 from __future__ import annotations
 
 # Pricing (integer minor units - NEVER floats)

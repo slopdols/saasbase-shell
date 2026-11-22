@@ -3,6 +3,7 @@
 Used from the error boundary and any critical business event.
 Telegram is a best-effort channel - failures are swallowed, never raised.
 """
+
 from __future__ import annotations
 
 import asyncio

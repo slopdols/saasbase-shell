@@ -233,8 +233,9 @@ feature test design, troubleshooting and live-vs-mocked evidence.
 
 Development requires Python 3.13, Node.js 22, PowerShell 7.2+, Bash and cfn-lint.
 On Windows use Git Bash; the runner avoids a `bash` executable backed by an
-unconfigured WSL installation. In your development Python environment, from the
-repository root:
+unconfigured WSL installation. Before backend checks, the runner verifies the
+Python interpreter satisfies `requires-python` (>= 3.13). In your development
+Python environment, from the repository root:
 
 ```sh
 python -m pip install -r backend/requirements-dev.txt
@@ -262,14 +263,17 @@ bash ./scripts/test.sh
 ```
 
 The runner executes PowerShell setup/purge/smoke regressions, Bash deployment/
-planner/installer tests, all backend pytest tests, all frontend unit tests, both
-local Playwright suites, a production frontend build and CloudFormation lint.
+planner/installer tests, all backend pytest tests, the backend quality gates
+(Python version, Ruff, Black and mypy strict via `scripts/python-check.sh`),
+all frontend unit tests, both local Playwright suites, a production frontend
+build and CloudFormation lint.
 It fails on missing tools or failed checks; it never deletes live resources.
 Live tests require deployed infrastructure and run separately in the pipeline.
 
 | Suite | Command / location | What it proves |
 |---|---|---|
 | Backend unit, service, API and storage integration | `python -m pytest --import-mode=importlib` in `backend` | Contracts through FastAPI/TestClient and moto-backed storage; not live AWS |
+| Backend quality gates | `scripts/python-check.sh` in root | Python >= 3.13, Ruff, Black and mypy strict, enforced by the runner and CI |
 | Frontend unit | `npm run test:unit` in `website` | Store/client/helper behavior |
 | Local browser | `npm run test:e2e` in `website` | Shell workflows with local backend mocks |
 | Native-auth browser | `npm run test:e2e:auth` in `website` | Native forms/session handling with Cognito responses mocked |

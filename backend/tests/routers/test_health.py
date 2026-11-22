@@ -1,4 +1,5 @@
 """Health/root endpoints (public)."""
+
 from __future__ import annotations
 
 from tests.conftest import ApiEnv

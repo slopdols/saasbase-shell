@@ -4,12 +4,14 @@ Single-table design. Handles Decimal<->int/float normalization, optimistic
 locking via condition expressions, soft delete, server-side pagination, batch
 gets, and transactional writes.
 """
+
 from __future__ import annotations
 
 import base64
 import json
+from collections.abc import Sequence
 from decimal import Decimal
-from typing import Any, Sequence
+from typing import Any, cast
 
 import boto3
 from botocore.exceptions import ClientError
@@ -26,7 +28,9 @@ _INDEX_COLUMNS = {
     "gsi2": ("gsi2_pk", "gsi2_sk"),
     "gsi3": ("gsi3_pk", "gsi3_sk"),
 }
-_SPARSE_INDEX_COLUMNS = frozenset(column for columns in _INDEX_COLUMNS.values() for column in columns)
+_SPARSE_INDEX_COLUMNS = frozenset(
+    column for columns in _INDEX_COLUMNS.values() for column in columns
+)
 
 
 def _to_ddb(value: Any) -> dict[str, Any]:
@@ -42,13 +46,13 @@ def _to_ddb(value: Any) -> dict[str, Any]:
         return {"S": value}
     if isinstance(value, dict):
         return {"M": {k: _to_ddb(v) for k, v in value.items()}}
-    if isinstance(value, (list, tuple)):
+    if isinstance(value, list | tuple):
         return {"L": [_to_ddb(v) for v in value]}
     raise TypeError(f"unsupported DynamoDB value type: {type(value)}")
 
 
 def _from_ddb(value: dict[str, Any]) -> Any:
-    (key, val), = value.items()
+    ((key, val),) = value.items()
     if key == "NULL":
         return None
     if key == "BOOL":
@@ -79,7 +83,7 @@ def _from_item(item: dict[str, Any]) -> dict[str, Any]:
 
 
 def _decode_cursor(cursor: str) -> dict[str, Any]:
-    return json.loads(base64.urlsafe_b64decode(cursor.encode()).decode())
+    return cast("dict[str, Any]", json.loads(base64.urlsafe_b64decode(cursor.encode()).decode()))
 
 
 def _build_update(
@@ -117,9 +121,7 @@ class DynamoCrud:
     # --- reads ---
 
     def get(self, pk: str, sk: str) -> dict[str, Any] | None:
-        resp = self._client.get_item(
-            TableName=self.table_name, Key=_to_item({"pk": pk, "sk": sk})
-        )
+        resp = self._client.get_item(TableName=self.table_name, Key=_to_item({"pk": pk, "sk": sk}))
         item = resp.get("Item")
         return _from_item(item) if item else None
 

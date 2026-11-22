@@ -1,5 +1,8 @@
 """Auth endpoints - demonstrate the caller dependency injectors."""
+
 from __future__ import annotations
+
+from typing import Any
 
 from fastapi import APIRouter, Depends
 
@@ -10,7 +13,7 @@ router = APIRouter(prefix="/v1/auth", tags=["auth"])
 
 
 @router.get("/me")
-def me(caller: Caller = Depends(require_caller)) -> dict:
+def me(caller: Caller = Depends(require_caller)) -> dict[str, Any]:
     return {
         "sub": caller.sub,
         "email": caller.email,
@@ -20,12 +23,12 @@ def me(caller: Caller = Depends(require_caller)) -> dict:
 
 
 @router.get("/whoami")
-def whoami(caller: Caller | None = Depends(optional_caller)) -> dict:
+def whoami(caller: Caller | None = Depends(optional_caller)) -> dict[str, Any]:
     if caller is None:
         return {"authenticated": False}
     return {"authenticated": True, "sub": caller.sub}
 
 
 @router.get("/admin/status")
-def admin_status(caller: Caller = Depends(require_admin)) -> dict:
+def admin_status(caller: Caller = Depends(require_admin)) -> dict[str, Any]:
     return {"admin": True, "sub": caller.sub}

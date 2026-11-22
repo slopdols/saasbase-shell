@@ -61,7 +61,9 @@ Do not duplicate whole guides or leave important features discoverable only in c
    `backend/tests/`, `website/tests/unit/`, `website/e2e/`.
    Extend `website/e2e/deployed/` and `setup-scripts/test-shell.ps1` for live flows.
 4. Update applicable mocks and the context map above; new suites join CI
-   and the full runner. Explain genuinely inapplicable layers.
+   and the full runner. Update the owning business document for behavior
+   changes and the applicable plan status/acceptance checkboxes in the same
+   change. Explain genuinely inapplicable layers.
 5. Run **all** local suites/build/lint: `./scripts/test.ps1` or
    `bash ./scripts/test.sh` from root. Report exact results and remaining gaps.
 6. When deployment is authorized, verify the app's Actions run and real dev checks.
@@ -92,5 +94,11 @@ it preserves cloned history but does not use GitHub template-generation metadata
 - Secrets stay out of code/git/logs/frontend; tokens stay in memory, not storage.
 - If payments are added, only verified Stripe webhooks may mark payments paid.
 - Python: Black 100, Ruff `E,F,I,W,UP,B`, mypy strict; follow existing JS conventions.
+- The full runner and CI enforce Python >= 3.13 + Ruff + Black + mypy via
+  `scripts/python-check.sh`; a violation fails the run.
+- Get-or-create must be idempotent/conflict-safe, with a required conflict
+  regression test.
 - If business docs and code disagree, report it: code describes current behavior,
-  documents intended behavior. Ask before changing one to match the other.
+  documents intended behavior. Any behavior change updates the owning business
+  document (or opens an explicit outstanding-decision item) in the same change;
+  ask before changing one to match the other.

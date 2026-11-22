@@ -3,6 +3,7 @@
 Used for pre-auth / anonymous sessions. HMAC-signed with the device key so
 they cannot be forged, and scoped to a session id.
 """
+
 from __future__ import annotations
 
 import hashlib

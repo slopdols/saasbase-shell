@@ -1,4 +1,5 @@
 """Time invariants: ISO-8601 UTC strings that sort lexicographically."""
+
 from __future__ import annotations
 
 from api.core.time import now_utc_iso

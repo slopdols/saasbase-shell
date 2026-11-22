@@ -1,4 +1,5 @@
 """Health and root endpoints."""
+
 from __future__ import annotations
 
 from fastapi import APIRouter
@@ -9,11 +10,11 @@ router = APIRouter(tags=["health"])
 
 
 @router.get("/")
-def root() -> dict:
+def root() -> dict[str, str]:
     return {"service": "saasbase-api", "status": "ok"}
 
 
 @router.get("/health")
-def health() -> dict:
+def health() -> dict[str, str]:
     settings = get_settings()
     return {"status": "ok", "environment": settings.environment}
